@@ -44,7 +44,7 @@ echo     S'està executant com a Administrador a %DRIVE%/.../%FOLDER%
 :: EN: Execute PowerShell script with Bypass execution policy
 :: CA: Execució de l'script de PowerShell amb la política d'execució bypass
 :: ==============================================================================
-powershell -nop -ex Bypass -Command "[Console]::InputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Raw -Encoding UTF8 '%~dp0pstnst_lndng_ffcmntr.ps1' | Invoke-Expression"
+powershell -nop -ex Bypass -Command "[Console]::InputEncoding = [System.Text.Encoding]::UTF8; Get-Content -Raw -Encoding UTF8 '%~dp0pstnst.ps1' | Invoke-Expression"
 
 echo.
 echo     Presiona qualsevol tecla per reiniciar l'script...

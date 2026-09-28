@@ -208,44 +208,52 @@ $sw.Restart()
 
 
     $sw.Restart()
-    $partitionStyle = "MBR"
-    $partitions = Get-CimInstance -ClassName Win32_DiskPartition -ErrorAction SilentlyContinue
-    if ($partitions | Where-Object { $_.Type -match "GPT" }) {
-        $partitionStyle = "GPT"
+    $diskDrives = @(Get-CimInstance -ClassName Win32_DiskDrive -ErrorAction SilentlyContinue | Sort-Object Index)
+
+    # Тип носителя из Storage-модуля (ключ = номер физического диска)
+    $physMap = @{}
+    if (Get-Command Get-PhysicalDisk -ErrorAction SilentlyContinue) {
+        Get-PhysicalDisk -ErrorAction SilentlyContinue | ForEach-Object { $physMap[[string]$_.DeviceId] = $_ }
     }
 
-    $diskDrives = Get-CimInstance -ClassName Win32_DiskDrive -ErrorAction SilentlyContinue
-    $logicalDisks = Get-CimInstance -ClassName Win32_LogicalDisk -Filter "DriveType=3" -ErrorAction SilentlyContinue
-    
     $disksList = @()
-    foreach ($disk in $logicalDisks) {
+    foreach ($drive in $diskDrives) {
         $swDisk = [System.Diagnostics.Stopwatch]::StartNew()
 
-        # Определение типа накопителя (SSD/HDD) / Determinació del tipus (SSD/HDD)
+        # SSD/HDD
         $mediaType = "HDD"
-        $parentDrive = $diskDrives | Where-Object { $_.DeviceID -match $disk.Index } | Select-Object -First 1
-        
-        if ($parentDrive -and ($parentDrive.Model -match "SSD|NVMe|Flash" -or $parentDrive.MediaType -match "SSD|Solid State")) {
+        $pd = $physMap[[string]$drive.Index]
+        if ($pd -and $pd.MediaType -in @("SSD", "HDD")) {
+            $mediaType = [string]$pd.MediaType
+        } elseif ($pd -and $pd.BusType -eq "NVMe") {
             $mediaType = "SSD"
-        } elseif (Get-Command Get-PhysicalDisk -ErrorAction SilentlyContinue) {
-            $physType = (Get-PhysicalDisk -ErrorAction SilentlyContinue | Select-Object -First 1).MediaType
-            if ($physType -and $physType -ne "Unspecified") {
-                $mediaType = $physType
+        } elseif ($drive.Model -match "SSD|NVMe|Flash|Solid") {
+            $mediaType = "SSD"
+        }
+
+        # Разделы -> тома (буквы), стиль таблицы разделов GPT/MBR, признак системного диска
+        $partitionStyle = "MBR"
+        $isSystem = $false
+        $freeBytes = 0
+        $parts = Get-CimAssociatedInstance -InputObject $drive -Association Win32_DiskDriveToDiskPartition -ErrorAction SilentlyContinue
+        foreach ($part in $parts) {
+            if ($part.Type -match "GPT") { $partitionStyle = "GPT" }
+            $lds = Get-CimAssociatedInstance -InputObject $part -Association Win32_LogicalDiskToPartition -ErrorAction SilentlyContinue
+            foreach ($ld in $lds) {
+                if ($ld.DeviceID -eq $env:SystemDrive) { $isSystem = $true }
+                $freeBytes += [uint64]$ld.FreeSpace
             }
         }
 
-        # Данные раздела / Dades de la partició
-        $driveLetter = $disk.DeviceID.Replace(":", "")
-        $isSystem = ($disk.DeviceID -eq $env:SystemDrive)
-        $fs = if ($disk.FileSystem) { $disk.FileSystem } else { "NTFS" }
-        $freeGB = [math]::Round($disk.FreeSpace / 1GB)
-        $totalGB = [math]::Round($disk.Size / 1GB)
+        $sizeGB = [math]::Round($drive.Size / 1GB)
+        $freeGB = [math]::Round($freeBytes / 1GB)
         $swDisk.Stop()
 
         $disksList += @{
-            Label    = $driveLetter
+            Index    = $drive.Index
+            Model    = $drive.Model
             IsSystem = $isSystem
-            Details  = "[$mediaType/$partitionStyle/$fs] $freeGB/$totalGB GB lliures"
+            Details  = "[$mediaType/$partitionStyle] $freeGB/$sizeGB GB lliures"
             Time     = $swDisk.ElapsedMilliseconds
         }
     }
@@ -381,9 +389,11 @@ Write-Host "[$($t.CPU) ms]" -ForegroundColor DarkGray
 
 
 Write-Host "`n       RAM: " -NoNewline -ForegroundColor Gray
-$ramColor = if ($sysInfo.RAMGB -gt 8) { "Green" } else { "White" }
+$ramColor = if ($sysInfo.RAMGB -ge 8) { "Green" } else { "White" }
 
-Write-Host "$($sysInfo.RAMTotalType) $($sysInfo.RAMGB) GB TOTAL " -NoNewline -ForegroundColor $ramColor
+Write-Host "$($sysInfo.RAMTotalType) " -NoNewline -ForegroundColor White
+Write-Host "$($sysInfo.RAMGB) GB" -NoNewline -ForegroundColor $ramColor
+Write-Host " TOTAL " -NoNewline -ForegroundColor White
 Write-Host "[$($t.RAM) ms]" -ForegroundColor DarkGray
 
 for ($i = 0; $i -lt $sysInfo.RAMList.Count; $i++) {
@@ -416,11 +426,11 @@ Write-Host "`n    DISCOS: " -NoNewline -ForegroundColor Gray
 for ($i = 0; $i -lt $sysInfo.DisksList.Count; $i++) {
     $d = $sysInfo.DisksList[$i]
     Write-Host (" " * 12 * [int]($i -gt 0)) -NoNewline
-    Write-Host "$($d.Label)" -NoNewline -ForegroundColor White
+    Write-Host "[$($d.Index)] $($d.Model) " -NoNewline -ForegroundColor White
+    Write-Host "$($d.Details) " -NoNewline -ForegroundColor DarkGray
     if ($d.IsSystem) {
-        Write-Host " [SISTEMA]" -NoNewline -ForegroundColor Green
+        Write-Host "[SISTEMA] " -NoNewline -ForegroundColor Green
     }
-    Write-Host " $($d.Details) " -NoNewline -ForegroundColor DarkGray
     Write-Host "[$($d.Time) ms]" -ForegroundColor DarkGray
 }
 
