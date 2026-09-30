@@ -15,83 +15,37 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Get-SystemSummary {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    
-
-
-
-
-
-
 
     $sw.Restart()
+    # Dades d'usuari i equip / User and host identity
+    $principal = [System.Security.Principal.WindowsPrincipal][System.Security.Principal.WindowsIdentity]::GetCurrent()
+    $isAdmin = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+    $adminText = if ($isAdmin) { "ADMIN" } else { "USUARI" }
+    $hostname = $env:COMPUTERNAME
+    $sysObject = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+    $workgroup = if ($sysObject.PartOfDomain) { $sysObject.Domain } else { $sysObject.Workgroup }
+    $tUser = $sw.ElapsedMilliseconds
+
+    $sw.Restart()
+    # Versió, compilació i arquitectura del SO / version, build, and architecture
     $osInfo = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
-    $osVersionRaw = $osInfo.Version
-    $buildNumber = $osInfo.BuildNumber
-    $versionParts = $osVersionRaw.Split('.')
-    $major = $versionParts[0]
-    $minor = $versionParts[1]
-    $osCaption = "NT $major.$minor Build $buildNumber"
+    $parts = $osInfo.Version.Split('.')
+    $osCaption = "NT $($parts[0]).$($parts[1]) Build $($osInfo.BuildNumber)"
     $osArch = $osInfo.OSArchitecture
     $tOS = $sw.ElapsedMilliseconds
 
 
-
-
-
-
-
-
-
-
     $sw.Restart()
-    $hostname = $env:COMPUTERNAME
-    $username = $env:USERNAME
-    $sysObject = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
-    $workgroup = if ($sysObject.PartOfDomain) { $sysObject.Domain } else {$sysObject.Workgroup }
-    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = [System.Security.Principal.WindowsPrincipal]$identity
-    $isAdmin = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
-    $adminText = if ($isAdmin) { "ADMIN" } else { "USUARI" }
-    $tUser = $sw.ElapsedMilliseconds
-
-
-
-
-
-
-
-
-
-
-    $sw.Restart()
+    # Versió de PowerShell i disponibilitat de Winget / PowerShell version and Winget availability
     $psVersionShort = "$($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor)"
     $hasWinget = [bool](Get-Command winget -ErrorAction SilentlyContinue)
     $tPS = $sw.ElapsedMilliseconds
-
-
-
-
-
-
-
-
-
-
 
     $sw.Restart()
     $cpu = (Get-CimInstance -ClassName Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1).Name
     $tCPU = $sw.ElapsedMilliseconds
 
-
-
-
-
-
-
-
-
-
-$sw.Restart()
+    $sw.Restart()
     $ramModules = Get-CimInstance -ClassName Win32_PhysicalMemory -ErrorAction SilentlyContinue
     $ramBytes = ($ramModules | Measure-Object -Property Capacity -Sum).Sum
     $ramGB = [math]::Round($ramBytes / 1GB, 1)
@@ -223,7 +177,9 @@ $sw.Restart()
         # SSD/HDD
         $mediaType = "HDD"
         $pd = $physMap[[string]$drive.Index]
-        if ($pd -and $pd.MediaType -in @("SSD", "HDD")) {
+        if ($drive.InterfaceType -eq "USB" -or ($pd -and $pd.BusType -eq "USB") -or $drive.MediaType -eq "Removable Media") {
+            $mediaType = "USB"
+        } elseif ($pd -and $pd.MediaType -in @("SSD", "HDD")) {
             $mediaType = [string]$pd.MediaType
         } elseif ($pd -and $pd.BusType -eq "NVMe") {
             $mediaType = "SSD"
@@ -308,7 +264,7 @@ $sw.Restart()
 
 
     return @{
-        User         = $username
+        User         = $env:USERNAME
         Hostname     = $hostname
         Workgroup    = $workgroup
         OSCaption    = $osCaption
