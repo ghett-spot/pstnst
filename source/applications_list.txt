@@ -1,0 +1,61 @@
+/creation
+	/foto
+		/FastStone
+			FSResizer45
+			FSResizerSetup45
+			FSViewer85
+			FSViewerSetup85
+		/RawTherapee
+			RawTherapee_5.13_win64_x86_64_release
+			RawTherapee_5.13_win64_arm64_release
+		/digiKam-9.1.0-Qt6-Win64
+	/graphic
+		/2d
+			gimp-3.2.6-setup
+			inkscape-1.4.4
+			krita-x64-5.3.4.1-setup
+		/3d
+			blender-5.2.2-windows-x64
+	/sound
+		Audacity_Installer_via_MuseHub
+	/streaming
+		OBS-Studio-32.2.2-Windows-x64-Installer
+	/video
+		/kdenlive
+			kdenlive-26.08.2
+			kdenlive-26.08.2_standalone
+		OpenShot-v4.0.1-x86_64
+	/code
+		sublime_text_build_4215_x64_setup 
+		VSCodeUserSetup-x64-1.142.0
+
+/files
+	/image_viewers
+		/ImageGlass
+			ImageGlass_10.0.6.906_win-arm64
+			ImageGlass_10.0.6.906_win-x64
+		/IrfanView
+			iview476_plugins_setup
+			iview476_plugins_x64_setup
+			iview476_setup
+			iview476_x64_setup
+	/Total Commander 11.58 Final
+		tcmd1158x64
+		tcmd1158x32_64
+		tcmd1158x32
+	7-Zip
+	winrar-x64-720
+
+/system
+	/antivir
+		/ESET NOD32 Antivirus or ESET Smart Security
+			EAV.ESS
+	Advanced_IP_Scanner_2.5.4594.1
+	pAlcoholSetup
+
+/text
+	LibreOffice_26.8.0_Win_x86-64
+	
+/torrents
+	qbittorrent_5.3.0rc1_x64_setup
+	utorrent_installer
